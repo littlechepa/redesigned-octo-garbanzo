@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+from pydantic import BaseModel
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -140,4 +141,23 @@ def signup_for_activity(activity_name: str, email: str):
 
     # Add student
     activity["participants"].append(email)
+
     return {"message": f"Signed up {email} for {activity_name}"}
+
+
+# Request model for unregistering
+class UnregisterRequest(BaseModel):
+    name: str
+    activity: str
+
+# Unregister a participant from an activity
+@app.post("/unregister")
+async def unregister_participant(req: UnregisterRequest):
+    activity_name = req.activity
+    name = req.name
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    if name not in activities[activity_name]["participants"]:
+        raise HTTPException(status_code=404, detail="Participant not found in this activity")
+    activities[activity_name]["participants"].remove(name)
+    return {"message": f"{name} unregistered from {activity_name}"}
