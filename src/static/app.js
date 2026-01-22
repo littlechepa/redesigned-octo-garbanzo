@@ -10,8 +10,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch("/activities");
       const activities = await response.json();
 
-      // Clear loading message
       activitiesList.innerHTML = "";
+      while (activitySelect.options.length > 1) {
+        activitySelect.remove(1);
+      }
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -25,8 +27,48 @@ document.addEventListener("DOMContentLoaded", () => {
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p><strong>Participants:</strong></p>
         `;
 
+        // Create participants list
+        const ul = document.createElement('ul');
+        ul.className = 'participants-list';
+        ul.style.listStyleType = 'none'; // Hide bullet points
+        ul.style.paddingLeft = '0';
+
+        if (Array.isArray(details.participants) && details.participants.length > 0) {
+          details.participants.forEach(participant => {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = participant;
+            nameSpan.style.flexGrow = '1';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = 'Unregister';
+            deleteBtn.style.marginLeft = '8px';
+            deleteBtn.style.background = 'none';
+            deleteBtn.style.border = 'none';
+            deleteBtn.style.cursor = 'pointer';
+            deleteBtn.style.fontSize = '1.1em';
+            deleteBtn.addEventListener('click', function() {
+              unregisterParticipant(participant, name);
+            });
+
+            li.appendChild(nameSpan);
+            li.appendChild(deleteBtn);
+            ul.appendChild(li);
+          });
+        } else {
+          const li = document.createElement('li');
+          li.innerHTML = '<em>No participants yet</em>';
+          ul.appendChild(li);
+        }
+
+        activityCard.appendChild(ul);
         activitiesList.appendChild(activityCard);
 
         // Add option to select dropdown
@@ -62,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -84,3 +127,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   fetchActivities();
 });
+  function unregisterParticipant(name, activity) {
+    fetch('/unregister', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, activity })
+    })
+    .then(response => response.json())
+    .then(() => {
+      // Call fetchActivities after DOM is ready
+      if (typeof fetchActivities === 'function') {
+        fetchActivities();
+      } else {
+        window.location.reload(); // fallback if fetchActivities is not in scope
+      }
+    });
+  }
